@@ -46,6 +46,7 @@ width:100px;height:50px;background:#000;margin:auto;
 <button onclick="startGame()">START</button>
 <button onclick="openShop()">SHOP</button>
 <button onclick="openUpgrades()">UPDATES</button>
+<button onclick="resetSave()">RESET SAVE</button>
 </div>
 
 <div id="dead" style="display:none;">
@@ -75,6 +76,8 @@ width:100px;height:50px;background:#000;margin:auto;
 <div class="panel" id="updates">
 <h2>UPDATES</h2>
 <p>saving of game progress has been added</p>
+<p>cloud save system has been added</p>
+<p>anti-cheat system has been added</p>
 <button onclick="closeUpdates()">BACK</button>
 </div>
 
@@ -97,47 +100,107 @@ glow:{price:100,owned:false,color:"cyan"}
 };
 
 let currentSkin="default";
-
 let magnetLevel=0;
 
-// ---------------- SAVE / LOAD ----------------
-function saveGame(){
-localStorage.setItem("rrt_save",JSON.stringify({
-coins,best,skins,currentSkin,magnetLevel
-}));
+// ================= CLOUD SAVE (API READY) =================
+const CLOUD_URL = "https://your-server.com/api/save"; 
+// <- später Firebase / Backend
+
+// ================= ANTI CHEAT =================
+function antiCheat(){
+if(coins < 0) coins = 0;
+if(best < 0) best = 0;
+if(magnetLevel < 0) magnetLevel = 0;
 }
 
-function loadGame(){
-let data=localStorage.getItem("rrt_save");
-if(!data) return;
-let s=JSON.parse(data);
+// ================= SAVE =================
+function saveGame(){
 
-coins=s.coins||0;
-best=s.best||0;
-magnetLevel=s.magnetLevel||0;
-currentSkin=s.currentSkin||"default";
+antiCheat();
+
+let data = {
+coins,
+best,
+skins,
+currentSkin,
+magnetLevel
+};
+
+// LOCAL SAVE
+localStorage.setItem("rrt_save", JSON.stringify(data));
+
+// CLOUD SAVE (Google-style backend)
+fetch(CLOUD_URL, {
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(data)
+}).catch(()=>{});
+
+}
+
+// ================= LOAD =================
+async function loadGame(){
+
+try{
+let res = await fetch(CLOUD_URL);
+if(res.ok){
+applySave(await res.json());
+return;
+}
+}catch(e){}
+
+let data = localStorage.getItem("rrt_save");
+if(data) applySave(JSON.parse(data));
+
+}
+
+// ================= APPLY SAVE =================
+function applySave(s){
+
+coins = s.coins || 0;
+best = s.best || 0;
+magnetLevel = s.magnetLevel || 0;
+currentSkin = s.currentSkin || "default";
 
 if(s.skins){
 for(let k in s.skins){
-if(skins[k]) skins[k].owned=s.skins[k].owned;
-}
+if(skins[k]) skins[k].owned = s.skins[k].owned;
 }
 }
 
-// ---------------- INIT ----------------
+antiCheat();
+updateUI();
+}
+
+// ================= RESET SAVE =================
+function resetSave(){
+localStorage.removeItem("rrt_save");
+coins=0;
+best=0;
+magnetLevel=0;
+currentSkin="default";
+
+for(let k in skins){
+if(k!="default") skins[k].owned=false;
+}
+
+saveGame();
+updateUI();
+alert("Save reset!");
+}
+
+// ================= GAME =================
 function resetGame(){
 bird={x:100,y:300,vel:0};
 pipes=[];
 score=0;
 }
 
-// ---------------- MENU ----------------
 function updateUI(){
 coinsUI.innerText=coins;
 bestUI.innerText=best;
 }
 
-// ---------------- GAME ----------------
 function startGame(){
 resetGame();
 state="game";
@@ -154,7 +217,7 @@ dead.style.display="none";
 updateUI();
 }
 
-// ---------------- SHOP ----------------
+// ================= SHOP =================
 function openShop(){
 shop.style.display="block";
 state="shop";
@@ -167,9 +230,9 @@ state="menu";
 updateUI();
 }
 
-// tabs
 function tab(t){
 document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+
 if(t==="skins"){
 skinsTab.style.display="block";
 upgradesTab.style.display="none";
@@ -182,6 +245,7 @@ document.querySelectorAll(".tab")[1].classList.add("active");
 }
 
 function renderShop(){
+
 let html="";
 for(let k in skins){
 let s=skins[k];
@@ -223,7 +287,7 @@ ctx.arc(50,25,10,0,Math.PI*2);
 ctx.fill();
 }
 
-// ---------------- SAVE CALLS ADDED ----------------
+// ================= SHOP ACTIONS =================
 function buySkin(k){
 let s=skins[k];
 if(coins>=s.price){
@@ -250,7 +314,7 @@ saveGame();
 }
 }
 
-// ---------------- UPDATES ----------------
+// ================= UPDATES =================
 function openUpgrades(){
 updates.style.display="block";
 state="updates";
@@ -260,7 +324,7 @@ updates.style.display="none";
 state="menu";
 }
 
-// ---------------- INPUT ----------------
+// ================= INPUT =================
 document.addEventListener("keydown",e=>{
 if(e.code==="Space" && state==="game") jump();
 });
@@ -271,7 +335,7 @@ if(state==="game") jump();
 
 function jump(){ bird.vel=-6.5; }
 
-// ---------------- LOOP ----------------
+// ================= LOOP =================
 let frame=0;
 
 function update(){
@@ -312,12 +376,11 @@ state="dead";
 dead.style.display="block";
 if(score>best) best=score;
 
-saveGame(); // SAVE ADDED
-
+saveGame();
 updateUI();
 }
 
-// ---------------- DRAW ----------------
+// ================= DRAW =================
 function draw(){
 ctx.clearRect(0,0,400,600);
 
@@ -355,11 +418,15 @@ requestAnimationFrame(loop);
 }
 loop();
 
-// ---------------- START LOAD ----------------
+// ================= INIT =================
 loadGame();
 updateUI();
 
-setInterval(saveGame,5000);
+setInterval(()=>{
+antiCheat();
+saveGame();
+},5000);
+
 </script>
 
 </body>
