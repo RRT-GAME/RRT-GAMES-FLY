@@ -91,6 +91,7 @@ let frame=0;
 /* ================= AUTO UPDATE SYSTEM (NEU) ================= */
 
 const CURRENT_VERSION = "1.0.0";
+let updateShown = false;
 
 async function checkForUpdates(){
   try{
@@ -99,26 +100,45 @@ async function checkForUpdates(){
 
     if(!data.version) return;
 
-    if(data.version !== CURRENT_VERSION){
-      console.log("Update gefunden:", data.version);
+    const savedVersion = localStorage.getItem("rrt_version");
 
-      log.innerHTML = "🔄 Update gefunden: " + data.version + "<br>Spiel wird neu geladen...";
-      updates.style.display="block";
-      updates.classList.add("show");
-
-      setTimeout(()=>{
-        location.reload();
-      }, 2000);
+    // erstes Mal speichern
+    if(!savedVersion){
+      localStorage.setItem("rrt_version", data.version);
+      return;
     }
+
+    // kein Update
+    if(savedVersion === data.version) return;
+
+    // nur 1x anzeigen
+    if(updateShown) return;
+    updateShown = true;
+
+    console.log("Update gefunden:", data.version);
+
+    log.innerHTML =
+      "🔄 Update gefunden: " + data.version +
+      "<br>" + (data.message || "Neues Update verfügbar!");
+
+    updates.style.display = "block";
+    updates.classList.add("show");
+
+    // Version speichern
+    localStorage.setItem("rrt_version", data.version);
+
+    setTimeout(()=>{
+      location.reload();
+    }, 2000);
+
   } catch(e){
     console.log("Update check failed", e);
   }
 }
 
-// alle 10 Sekunden prüfen
+// alle 10 Sekunden checken
 setInterval(checkForUpdates, 10000);
 checkForUpdates();
-
 /* ================= SAVE SYSTEM ================= */
 function saveGame(){
   const data = {
