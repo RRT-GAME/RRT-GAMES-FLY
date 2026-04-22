@@ -89,7 +89,6 @@ let score=0,coins=0,best=0;
 let frame=0;
 
 /* ================= AUTO UPDATE SYSTEM (NEU) ================= */
-
 const CURRENT_VERSION = "1.0.0";
 let updateShown = false;
 
@@ -100,18 +99,18 @@ async function checkForUpdates(){
 
     if(!data.version) return;
 
-    const savedVersion = localStorage.getItem("rrt_version");
+    let savedVersion = localStorage.getItem("rrt_version");
 
-    // erstes Mal speichern
+    // 🟢 ERSTER START → speichern
     if(!savedVersion){
       localStorage.setItem("rrt_version", data.version);
       return;
     }
 
-    // kein Update
+    // 🟢 kein Update
     if(savedVersion === data.version) return;
 
-    // nur 1x anzeigen
+    // 🟢 Schutz gegen Spam
     if(updateShown) return;
     updateShown = true;
 
@@ -124,7 +123,7 @@ async function checkForUpdates(){
     updates.style.display = "block";
     updates.classList.add("show");
 
-    // Version speichern
+    // speichern
     localStorage.setItem("rrt_version", data.version);
 
     setTimeout(()=>{
@@ -136,7 +135,6 @@ async function checkForUpdates(){
   }
 }
 
-// alle 10 Sekunden checken
 setInterval(checkForUpdates, 10000);
 checkForUpdates();
 /* ================= SAVE SYSTEM ================= */
