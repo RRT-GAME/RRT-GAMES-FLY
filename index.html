@@ -19,7 +19,6 @@ overflow-y:auto;
 z-index:10;
 }
 
-/* tabs */
 .tabs{display:flex;}
 .tab{flex:1;padding:10px;background:#222;cursor:pointer;}
 .tab.active{background:orange;}
@@ -75,7 +74,7 @@ width:100px;height:50px;background:#000;margin:auto;
 <!-- UPDATES -->
 <div class="panel" id="updates">
 <h2>UPDATES</h2>
-<p>Next update in 1 week</p>
+<p>saving of game progress has been added</p>
 <button onclick="closeUpdates()">BACK</button>
 </div>
 
@@ -90,7 +89,6 @@ let state="menu";
 let bird,pipes=[];
 let score=0,coins=0,best=0;
 
-// ---------------- SKINS ----------------
 let skins={
 default:{price:0,owned:true,color:"yellow"},
 red:{price:10,owned:false,color:"red"},
@@ -100,8 +98,31 @@ glow:{price:100,owned:false,color:"cyan"}
 
 let currentSkin="default";
 
-// ---------------- UPGRADES ----------------
-let magnetLevel=0; // % power
+let magnetLevel=0;
+
+// ---------------- SAVE / LOAD ----------------
+function saveGame(){
+localStorage.setItem("rrt_save",JSON.stringify({
+coins,best,skins,currentSkin,magnetLevel
+}));
+}
+
+function loadGame(){
+let data=localStorage.getItem("rrt_save");
+if(!data) return;
+let s=JSON.parse(data);
+
+coins=s.coins||0;
+best=s.best||0;
+magnetLevel=s.magnetLevel||0;
+currentSkin=s.currentSkin||"default";
+
+if(s.skins){
+for(let k in s.skins){
+if(skins[k]) skins[k].owned=s.skins[k].owned;
+}
+}
+}
 
 // ---------------- INIT ----------------
 function resetGame(){
@@ -160,10 +181,7 @@ document.querySelectorAll(".tab")[1].classList.add("active");
 }
 }
 
-// render shop
 function renderShop(){
-
-// SKINS
 let html="";
 for(let k in skins){
 let s=skins[k];
@@ -172,7 +190,6 @@ html+=`
 <div class="shopItem">
 <b>${k}</b><br>
 Price: ${s.price}<br>
-
 <canvas class="preview" id="p_${k}" width="100" height="50"></canvas><br>
 
 ${!s.owned ?
@@ -183,10 +200,8 @@ ${!s.owned ?
 }
 skinsTab.innerHTML=html;
 
-// preview draw
 for(let k in skins) drawPreview(k);
 
-// UPGRADES
 upgradesTab.innerHTML=`
 <div class="shopItem">
 Magnet Level: ${magnetLevel}<br>
@@ -196,7 +211,6 @@ Pull Power: ${magnetLevel*20}%<br>
 `;
 }
 
-// preview
 function drawPreview(k){
 let canvas=document.getElementById("p_"+k);
 if(!canvas) return;
@@ -209,7 +223,7 @@ ctx.arc(50,25,10,0,Math.PI*2);
 ctx.fill();
 }
 
-// buy
+// ---------------- SAVE CALLS ADDED ----------------
 function buySkin(k){
 let s=skins[k];
 if(coins>=s.price){
@@ -217,16 +231,22 @@ coins-=s.price;
 s.owned=true;
 currentSkin=k;
 renderShop();
+saveGame();
 }
 }
 
-function equip(k){ currentSkin=k; renderShop(); }
+function equip(k){
+currentSkin=k;
+renderShop();
+saveGame();
+}
 
 function buyMagnet(){
 if(coins>=50){
 coins-=50;
 magnetLevel++;
 renderShop();
+saveGame();
 }
 }
 
@@ -260,7 +280,6 @@ if(state!=="game") return;
 bird.vel+=0.35;
 bird.y+=bird.vel;
 
-// pipes
 if(frame%90===0){
 let t=100+Math.random()*250;
 pipes.push({x:400,top:t,bottom:t+150,scored:false});
@@ -273,7 +292,7 @@ if(hit(p)) die();
 
 if(!p.scored && p.x<bird.x){
 score++;
-coins++; // 🪙 COIN PER PIPE
+coins++;
 p.scored=true;
 }
 }
@@ -292,6 +311,9 @@ function die(){
 state="dead";
 dead.style.display="block";
 if(score>best) best=score;
+
+saveGame(); // SAVE ADDED
+
 updateUI();
 }
 
@@ -333,8 +355,11 @@ requestAnimationFrame(loop);
 }
 loop();
 
-// init UI
+// ---------------- START LOAD ----------------
+loadGame();
 updateUI();
+
+setInterval(saveGame,5000);
 </script>
 
 </body>
